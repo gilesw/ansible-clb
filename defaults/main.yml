@@ -1,0 +1,37 @@
+clb_state: "{{ state | default('present') }}"
+
+clb_tenant_id: "{{ os_stack_tenant_id | default('wibble') }}"
+clb_username: "{{ os_stack_username | default('wibble') }}"
+clb_password: "{{ os_stack_password | default('wibble') }}"
+clb_auth_url: "https://identity.api.rackspacecloud.com/v2.0/"
+
+clb_name: "product_long-label-service"
+clb_stack_name: "product_long-label-service"
+
+clb_parameters: "{{ omit }}"
+clb_template: "{{ inventory_dir }}/.files/clb/built/{{ clb_stack_name }}.yml"
+clb_source_template: clb.yml.j2
+clb_state_file: "{{ inventory_dir }}/.files/clb/state/{{ clb_stack_name }}.yml"
+
+clb_healthMonitor: true
+
+clb_port: 443
+clb_protocol: HTTPS
+clb_algorithm: WEIGHTED_ROUND_ROBIN
+clb_timeout: 119
+clb_sessionPersistence: SOURCE_IP
+
+clb_connectionLogging: false
+
+clb_secureTrafficOnly: false
+clb_type: PUBLIC # or SERVNET
+
+clb_healthMonitor_attemptsBeforeDeactivation: 2
+clb_healthMonitor_delay: 1
+clb_healthMonitor_timeout: 5
+clb_healthMonitor_type: HTTPS
+clb_healthMonitor_path: '/wibble'
+clb_healthMonitor_bodyRegex: '.*wibble'
+clb_healthMonitor_statusRegex: '^[23]0[0-2]$'
+
+

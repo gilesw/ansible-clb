@@ -1,0 +1,89 @@
+- name: template our os_stack heat file
+  template:
+    src: "{{ inventory_dir }}/.files/clb/{{ clb_source_template }}"
+    dest: "{{ clb_template }}"
+  register: clb_template_result
+
+- name: "list current stacks and search for {{ clb_stack_name }}"
+  shell: "heat stack-list | grep -q {{ clb_stack_name }}"
+  ignore_errors: true
+  environment:
+    OS_USERNAME: "{{ clb_username }}"
+    OS_PASSWORD: "{{ clb_password }}"
+    OS_TENANT_ID: "{{ clb_tenant_id }}"
+    OS_AUTH_URL: "{{ clb_auth_url }}"
+  register: stack_exists
+  when: clb_template_result.changed
+  changed_when: false
+
+#- debug: msg="{{ stack_exists }}"
+
+- name: "dry run an update stack to see if anything needs to change be updated"
+  shell: "heat stack-update {{ clb_stack_name }} --template-file {{ clb_template }} --dry-run > {{ clb_state_file }}"
+  environment:
+    OS_USERNAME: "{{ clb_username }}"
+    OS_PASSWORD: "{{ clb_password }}"
+    OS_TENANT_ID: "{{ clb_tenant_id }}"
+    OS_AUTH_URL: "{{ clb_auth_url }}"
+  when: ( stack_exists.rc is defined and stack_exists.rc == 0 ) and clb_template_result.changed
+  ignore_errors: true
+
+- name: "check for updated resources"
+  shell: "cat {{ clb_state_file }} | grep updated "
+  when: ( stack_exists.rc is defined and stack_exists.rc == 0 ) and clb_template_result.changed
+  register: stack_updated
+  ignore_errors: true
+
+- name: "check for replaced resources"
+  shell: "cat {{ clb_state_file }} | grep replaced "
+  when: ( stack_exists.rc is defined and stack_exists.rc == 0 ) and clb_template_result.changed
+  register: stack_replaced
+  ignore_errors: true
+
+- name: "require input when things are replaced"
+  pause:
+    prompt: "things are going to be replaced! {{ stack_replaced.stdout }}"
+  when: ( stack_exists.rc is defined and stack_exists.rc == 0 ) and clb_template_result.changed and ( stack_replaced.rc is defined and stack_replaced.rc == 0 )
+  ignore_errors: true
+
+- name: build os_stack
+  os_stack:
+    auth:
+      tenant_id: "{{ clb_tenant_id }}"
+      username: "{{ clb_username }}"
+      password: "{{ clb_password }}"
+      auth_url: "{{ clb_auth_url }}"
+    name: "{{ clb_stack_name }}"
+    state: "{{ clb_state }}"
+    template: "{{ clb_template }}"
+    parameters: "{{ clb_parameters }}"
+  loop_control:
+    label: "{{ clb_template }}"
+  when: clb_template_result.changed
+  register: clb_loop_result
+
+- name: grab load_balancer_id
+  shell: "heat output-show {{ clb_stack_name }} load_balancer_id "
+  environment:
+    OS_USERNAME: "{{ clb_username }}"
+    OS_PASSWORD: "{{ clb_password }}"
+    OS_TENANT_ID: "{{ clb_tenant_id }}"
+    OS_AUTH_URL: "{{ clb_auth_url }}"
+  register: load_balancer_id
+  when: clb_template_result.changed
+
+- name: "Create {{ inventory_dir }}/.files/clb/outputs/{{ label }} to store our load balancer id"
+  file:
+    path: "{{ inventory_dir }}/.files/clb/outputs/{{ label }}"
+    state: directory
+  when: clb_template_result.changed
+
+- name: template our outputs so they can be included by other things
+  template:
+    src: outputs.yml.j2
+    dest: "{{ inventory_dir }}/.files/clb/outputs/{{ label }}/{{ clb_stack_name }}.yml"
+  when: clb_template_result.changed
+
+
+
+

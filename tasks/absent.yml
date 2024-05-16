@@ -1,0 +1,22 @@
+- name: delete template if we absent the stack
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ clb_template }}"
+  ignore_errors: true
+
+- name: destroy os_stack
+  os_stack:
+    auth:
+      tenant_id: "{{ clb_tenant_id }}"
+      username: "{{ clb_username }}"
+      password: "{{ clb_password }}"
+      auth_url: "{{ clb_auth_url }}"
+    name: "{{ clb_stack_name }}"
+    state: "{{ clb_state }}"
+    template: "{{ clb_template }}"
+    parameters: "{{ clb_parameters }}"
+  loop_control:
+    label: "{{ clb_template }}"
+

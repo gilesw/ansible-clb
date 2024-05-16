@@ -1,0 +1,58 @@
+#jinja2: lstrip_blocks: "True"
+heat_template_version: 2015-10-15
+
+description: |
+  Load balancer
+
+resources:
+
+# https://developer.rackspace.com/docs/user-guides/orchestration/cloud-loadbalancer/
+
+  load_balancer:
+    type: "Rackspace::Cloud::LoadBalancer"
+    properties:
+      name: {{ clb_name }}
+      {% if clb_healthMonitor %}
+      healthMonitor:
+        attemptsBeforeDeactivation: {{ clb_healthMonitor_attemptsBeforeDeactivation }}
+        delay: "{{ clb_healthMonitor_delay }}"
+        timeout: "{{ clb_healthMonitor_timeout }}"
+        type: "{{ clb_healthMonitor_type }}"
+        path: "{{ clb_healthMonitor_path }}"
+        bodyRegex: "{{ clb_healthMonitor_bodyRegex }}"
+        statusRegex: "{{ clb_healthMonitor_statusRegex }}"
+      {% endif %}
+      nodes: []
+      port: {{ clb_port }}
+      timeout: {{ clb_timeout }}
+      protocol: {{ clb_protocol }}
+      algorithm: {{ clb_algorithm }}
+      connectionLogging: {{ clb_connectionLogging }}
+      {% if clb_contentCaching is defined %}
+      contentCaching: ENABLED
+      {% endif %}
+      # https://developer.rackspace.com/docs/cloud-load-balancers/v1/api-reference/sessions/
+      sessionPersistence: {{ clb_sessionPersistence }}
+      {% if clb_protocol == 'HTTP' %}
+      sslTermination:
+        secureTrafficOnly: {{ clb_secureTrafficOnly }}
+        securePort: 443
+        certificate: "{{ lookup('file', '{{ inventory_dir }}/.files/certificates/wibble.pem' ) | replace('\n', '\\n') }}"
+        intermediateCertificate: "{{ lookup('file', '{{ inventory_dir }}/.files/certificates/wibble.pem' ) | replace('\n', '\\n') }}"
+        privatekey: "{{ lookup('file', '{{ inventory_dir }}/.files/certificates/wibble-key.pem' ) | replace('\n', '\\n') }}"
+      {% endif %}
+      virtualIps:
+      - type: {{ clb_type }} # SERVICENET or PUBLIC
+        ipVersion: IPV4
+
+      # IPv6 address will have to be added after-the-fact using the API as seen here: https://developer.rackspace.com/docs/cloud-load-balancers/v1/api-reference/virtual-ips/#add-virtual-ip-version-6
+
+      metadata:
+        rax-heat: { get_param: "OS::stack_id" }
+
+outputs:
+  load_balancer_id:
+    description: "load balancer show"
+    value:
+      get_resource: load_balancer
+
